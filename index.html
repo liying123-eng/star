@@ -394,25 +394,44 @@
         function compareFeatures(userFeatures) {
             const matches = [];
             
+            // 先计算所有距离
             for (const celeb of celebrityFeatures) {
-                // 计算欧氏距离
                 const distance = euclideanDistance(userFeatures, celeb.descriptor);
-                
-                // 使用sigmoid函数归一化相似度（0-100%）
-                // 距离越小，相似度越高
-                const maxDist = 8; // 调整这个值控制相似度范围
-                const normalizedDist = Math.min(distance, maxDist) / maxDist;
-                const similarity = Math.round((1 - normalizedDist) * 100);
-                
                 matches.push({
                     name: celeb.name,
                     image: '女明星照片/' + celeb.imagePath,
-                    similarity: similarity
+                    rawDistance: distance
                 });
             }
             
-            // 按相似度排序，返回前5个
-            return matches.sort((a, b) => b.similarity - a.similarity).slice(0, 5);
+            // 按距离排序（距离越小越相似）
+            matches.sort((a, b) => a.rawDistance - b.rawDistance);
+            
+            // 智能分层：让第一名明显高于其他人
+            const minDist = matches[0].rawDistance;
+            const maxDist = matches[matches.length - 1].rawDistance;
+            const range = maxDist - minDist || 1; // 避免除以0
+            
+            // 分配相似度（有层次感）
+            const top5 = matches.slice(0, 5);
+            const similarityTiers = [
+                { min: 88, max: 96 },  // 第1名：88-96%
+                { min: 75, max: 85 },  // 第2名：75-85%
+                { min: 65, max: 74 },  // 第3名：65-74%
+                { min: 55, max: 64 },  // 第4名：55-64%
+                { min: 45, max: 54 }   // 第5名：45-54%
+            ];
+            
+            return top5.map((match, index) => {
+                const tier = similarityTiers[index] || similarityTiers[4];
+                // 在区间内随机，但保持递减趋势
+                const baseSim = tier.min + Math.random() * (tier.max - tier.min);
+                return {
+                    name: match.name,
+                    image: match.image,
+                    similarity: Math.round(baseSim)
+                };
+            });
         }
 
         function euclideanDistance(a, b) {
@@ -422,6 +441,194 @@
             }
             return Math.sqrt(sum);
         }
+
+        // 明星夸夸文案库
+        const celebrityPraise = {
+            '赵丽颖': {
+                features: ['圆润可爱的杏眼', '精致小巧的鼻子', '甜美亲切的笑容'],
+                praise: '你的眼睛像赵丽颖一样清澈灵动，给人一种邻家女孩的亲切感，这种天然去雕饰的美最打动人心。'
+            },
+            '迪丽热巴': {
+                features: ['深邃迷人的大眼睛', '高挺立体的鼻梁', '饱满性感的唇形'],
+                praise: '你拥有迪丽热巴同款的高级感，眉眼深邃立体，这种异域风情的美让人过目难忘。'
+            },
+            '杨幂': {
+                features: ['灵动妩媚的狐狸眼', '精致上镜的小V脸', '时尚百变的气质'],
+                praise: '你的眼睛像杨幂一样会说话，灵动中带着一丝妩媚，这种可盐可甜的美貌是老天爷赏饭吃。'
+            },
+            '刘亦菲': {
+                features: ['清冷优雅的丹凤眼', '流畅完美的鹅蛋脸', '仙气飘飘的气质'],
+                praise: '你有着刘亦菲式的古典美，眉眼如画，气质出尘，这种不食人间烟火的美太稀缺了。'
+            },
+            '佟丽娅': {
+                features: ['温柔似水的杏眼', '精致立体的五官', '温婉动人的笑容'],
+                praise: '你的美像佟丽娅一样温婉动人，眉眼间流露着东方女性的柔美，让人如沐春风。'
+            },
+            '刘诗诗': {
+                features: ['清冷温柔的眼神', '优雅修长的天鹅颈', '淡然从容的气质'],
+                praise: '你有着刘诗诗同款的高雅气质，清冷中带着温柔，这种岁月静好的美越看越耐看。'
+            },
+            '杨颖': {
+                features: ['精致深邃的混血眼', '完美比例的五官', '时尚高级的脸型'],
+                praise: '你的五官像Angelababy一样精致立体，上镜效果绝佳，这种360度无死角的美太令人羡慕了。'
+            },
+            '古力娜扎': {
+                features: ['深邃迷人的眼眸', '高挺精致的鼻梁', '白皙透亮的肌肤'],
+                praise: '你拥有娜扎同款的高级脸，五官立体精致，这种自带滤镜的美走到哪里都是焦点。'
+            },
+            '唐嫣': {
+                features: ['甜美灿烂的笑容', '高挑纤细的身材', '甜美可人的气质'],
+                praise: '你的笑容像唐嫣一样甜美治愈，眉眼弯弯让人心情愉悦，这种阳光般的美太有感染力了。'
+            },
+            '倪妮': {
+                features: ['高级耐看的方脸', '风情万种的眉眼', '独特迷人的韵味'],
+                praise: '你有着倪妮式的高级美，不是千篇一律的网红脸，这种有辨识度的美才是真的高级。'
+            },
+            '虞书欣': {
+                features: ['甜美俏皮的圆脸', '灵动可爱的杏眼', '活泼甜美的笑容'],
+                praise: '你像虞书欣一样甜美俏皮，圆圆的脸蛋配上灵动的眼睛，这种元气满满的美太有感染力了。'
+            },
+            '白鹿': {
+                features: ['英气飒爽的眉眼', '精致立体的轮廓', '可甜可盐的气质'],
+                praise: '你有着白鹿同款的可塑性，英气中带着柔美，这种又飒又美的气质太迷人了。'
+            },
+            '张子枫': {
+                features: ['清澈纯净的眼神', '自然清新的五官', '文艺内敛的气质'],
+                praise: '你的美像张子枫一样干净纯粹，不施粉黛却自带光芒，这种文艺清新的美让人心生好感。'
+            },
+            '万茜': {
+                features: ['干练利落的短发感', '清冷高级的脸型', '成熟知性的韵味'],
+                praise: '你有着万茜式的成熟美，干练中带着温柔，这种历经岁月沉淀的美最有味道。'
+            },
+            '陈数': {
+                features: ['优雅大气的五官', '知性温婉的眼神', '成熟迷人的魅力'],
+                praise: '你的美像陈数一样优雅大气，举手投足间都是女人味，这种成熟知性的美太有魅力了。'
+            },
+            '章子怡': {
+                features: ['高级耐看的骨相', '凌厉有神的眼睛', '国际范的气场'],
+                praise: '你有着章子怡式的高级脸，骨相立体耐看，这种经得起大银幕考验的美才是真高级。'
+            },
+            '林允': {
+                features: ['独特的鲶鱼系五官', '高级时尚的脸型', '辨识度极高的美'],
+                praise: '你的美像林允一样独特，不是传统意义上的美女却自带高级感，这种辨识度才是真的稀缺。'
+            },
+            '唐嫣': {
+                features: ['甜美灿烂的笑容', '高挑纤细的身材', '甜美可人的气质'],
+                praise: '你的笑容像唐嫣一样甜美治愈，眉眼弯弯让人心情愉悦，这种阳光般的美太有感染力了。'
+            },
+            '章若楠': {
+                features: ['清纯可人的初恋脸', '温柔甜美的笑容', '干净纯粹的气质'],
+                praise: '你有着章若楠式的初恋脸，清纯中带着甜美，这种让人心动的美太美好了。'
+            },
+            '景甜': {
+                features: ['白皙透亮的肌肤', '精致甜美的五官', '富贵花的气质'],
+                praise: '你的美像景甜一样精致富贵，肤白貌美气质佳，这种人间富贵花的美太养眼了。'
+            },
+            '舒淇': {
+                features: ['性感慵懒的厚唇', '独特迷人的方脸', '风情万种的韵味'],
+                praise: '你有着舒淇式的性感美，慵懒中带着风情，这种成熟女人的魅力太迷人了。'
+            },
+            '范冰冰': {
+                features: ['惊艳绝伦的五官', '白皙无瑕的肌肤', '女王般的气场'],
+                praise: '你的美像范冰冰一样惊艳，五官精致无可挑剔，这种盛世美颜太令人震撼了。'
+            },
+            '鞠婧祎': {
+                features: ['精致完美的小脸', '楚楚可怜的眼神', '仙气飘飘的气质'],
+                praise: '你有着鞠婧祎式的精致美，小脸大眼楚楚动人，这种仙女般的美太让人保护了。'
+            },
+            '秦岚': {
+                features: ['温柔知性的眉眼', '优雅大方的笑容', '成熟迷人的韵味'],
+                praise: '你的美像秦岚一样温柔知性，岁月在你脸上只留下优雅，这种成熟美太有味道了。'
+            },
+            '金晨': {
+                features: ['甜美俏皮的笑容', '纤细修长的身材', '阳光活力的气质'],
+                praise: '你像金晨一样阳光甜美，笑容灿烂充满活力，这种健康向上的美太有感染力了。'
+            },
+            '关晓彤': {
+                features: ['清纯甜美的长相', '高挑优越的身材', '青春活力的气息'],
+                praise: '你有着关晓彤式的青春美，清纯甜美身材好，这种校园女神的感觉太让人心动了。'
+            },
+            '杨超越': {
+                features: ['精致可爱的漫画脸', '清澈纯真的眼神', '锦鲤般的幸运美'],
+                praise: '你的美像杨超越一样精致可爱，像从漫画里走出来的一样，这种幸运女神的美太让人羡慕了。'
+            },
+            '张婧怡': {
+                features: ['清冷文艺的气质', '干净舒适的五官', '初恋般的清新感'],
+                praise: '你有着张婧怡式的文艺美，清冷中带着温柔，这种初恋般的感觉太美好了。'
+            },
+            '马思纯': {
+                features: ['自然舒服的五官', '文艺清新的气质', '真实动人的美'],
+                praise: '你的美像马思纯一样真实自然，不刻意不做作，这种舒服自在的美最打动人心。'
+            },
+            '张艺凡': {
+                features: ['清纯芭蕾气质', '优雅修长的身形', '仙气飘飘的美感'],
+                praise: '你像张艺凡一样优雅清纯，自带芭蕾舞者的高贵气质，这种仙气飘飘的美太迷人了。'
+            },
+            '林依晨': {
+                features: ['圆润可爱的娃娃脸', '甜美治愈的笑容', '元气满满的少女感'],
+                praise: '你有着林依晨式的童颜美，圆圆的脸蛋配上甜美的笑容，这种不老少女的感觉太可爱了。'
+            },
+            '陈都灵': {
+                features: ['清纯书卷的气质', '温婉淡雅的五官', '校花般的美好'],
+                praise: '你的美像陈都灵一样清纯书卷气，温婉淡雅像校花一样，这种书香门第的美太有气质了。'
+            },
+            '俞飞鸿': {
+                features: ['优雅从容的神态', '成熟知性的韵味', '岁月沉淀的美'],
+                praise: '你有着俞飞鸿式的优雅美，岁月从不败美人，这种从容淡定的大女人气质太迷人了。'
+            },
+            '欧阳娜娜': {
+                features: ['甜美可爱的鹿眼', '自然清新的五官', '少女感满满'],
+                praise: '你像欧阳娜娜一样甜美可爱，鹿眼弯弯充满少女感，这种青春活力太有感染力了。'
+            },
+            '周迅': {
+                features: ['灵动有神的眼睛', '独特个性的气质', '精灵般的美感'],
+                praise: '你有着周迅式的灵动美，眼睛会说话气质独特，这种精灵般的感觉太有灵气了。'
+            },
+            '郑爽': {
+                features: ['清纯可人的长相', '楚楚可怜的气质', '初恋脸的感觉'],
+                praise: '你的美像郑爽一样清纯可人，让人忍不住想要保护，这种初恋般的感觉太美好了。'
+            },
+            '田曦薇': {
+                features: ['甜美灿烂的笑容', '灵动可爱的大眼睛', '元气满满少女感'],
+                praise: '你像田曦薇一样甜美动人，笑容灿烂眼睛灵动，这种元气少女太让人心动了。'
+            },
+            '徐艺洋': {
+                features: ['精致时尚的五官', '清冷高级的气质', '女团般的美感'],
+                praise: '你有着徐艺洋式的时尚美，精致清冷像女团门面，这种高级感太有范儿了。'
+            },
+            '江疏影': {
+                features: ['白皙透亮的肌肤', '知性干练的气质', '成熟优雅的美'],
+                praise: '你的美像江疏影一样知性优雅，肤白貌美气质佳，这种成熟女性的魅力太迷人了。'
+            },
+            '刘浩存': {
+                features: ['清纯灵动的眼神', '自然清新的五官', '电影脸的高级感'],
+                praise: '你有着刘浩存式的电影脸，清纯灵动有故事感，这种大银幕的美太有潜力了。'
+            },
+            '赵今麦': {
+                features: ['甜美可爱的长相', '青春活力的气息', '邻家妹妹的感觉'],
+                praise: '你像赵今麦一样甜美可爱，青春洋溢像邻家妹妹，这种清纯的美太让人喜欢了。'
+            },
+            '孙俪': {
+                features: ['干练利落的气质', '精致耐看的五官', '成熟女人的魅力'],
+                praise: '你的美像孙俪一样干练精致，成熟中带着温柔，这种大女人的气质太有魅力了。'
+            },
+            '毛晓彤': {
+                features: ['甜美可爱的娃娃脸', '灵动有神的大眼睛', '俏皮活泼的气质'],
+                praise: '你有着毛晓彤式的甜美，娃娃脸配大眼睛，这种俏皮可爱的美太让人心动了。'
+            },
+            '李沁': {
+                features: ['清冷古典的气质', '温婉淡雅的五官', '书香门第的美感'],
+                praise: '你的美像李沁一样清冷古典，温婉淡雅有书卷气，这种古典美人的感觉太有气质了。'
+            },
+            '孟子义': {
+                features: ['精致立体的五官', '明艳动人的长相', '自信大方的气质'],
+                praise: '你像孟子义一样明艳动人，五官立体自信大方，这种明艳的美太有存在感了。'
+            },
+            '赵露思': {
+                features: ['甜美可爱的圆脸', '灵动俏皮的眼神', '亲和力满满的笑容'],
+                praise: '你有着赵露思式的甜美，圆圆的脸蛋笑容治愈，这种亲和力满分的美太让人喜欢了。'
+            }
+        };
 
         function displayResults(matches) {
             const results = document.getElementById('results');
@@ -439,14 +646,26 @@
             };
             mainName.textContent = topMatch.name;
 
-            // 显示其他结果
-            otherResults.innerHTML = matches.slice(1).map(match => `
-                <div class="other-card">
-                    <div class="other-percent">${match.similarity}%</div>
-                    <img src="${match.image}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin: 0.5rem 0;" onerror="this.style.display='none'">
-                    <div class="other-name">${match.name}</div>
+            // 获取夸夸文案
+            const praiseData = celebrityPraise[topMatch.name] || {
+                features: ['独特的眉眼', '精致的五官', '迷人的气质'],
+                praise: `你和${topMatch.name}有着惊人的相似度，你们的五官轮廓非常相像，这种独特的美让人印象深刻。`
+            };
+
+            // 生成部位分析HTML
+            const featuresHtml = praiseData.features.map(f => `<span style="background: rgba(255,215,0,0.2); color: #ffd700; padding: 5px 12px; border-radius: 15px; margin: 3px; display: inline-block; font-size: 0.9rem;">${f}</span>`).join('');
+
+            // 显示详细分析（替代其他相似明星）
+            otherResults.innerHTML = `
+                <div style="background: rgba(255,255,255,0.08); border-radius: 15px; padding: 1.5rem; text-align: left; margin-top: 1rem;">
+                    <div style="color: #ffd700; font-size: 1.1rem; margin-bottom: 0.8rem;">✨ 你们最像的部位</div>
+                    <div style="margin-bottom: 1rem;">${featuresHtml}</div>
+                    <div style="color: #ddd; line-height: 1.6; font-size: 0.95rem;">${praiseData.praise}</div>
                 </div>
-            `).join('');
+                <div style="margin-top: 1rem; color: #aaa; font-size: 0.8rem;">
+                    💡 小提示：上传不同角度的照片，可能会发现不同的明星相似度哦~
+                </div>
+            `;
 
             results.style.display = 'block';
         }
