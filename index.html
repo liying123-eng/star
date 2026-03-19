@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI明星撞脸测试 - 真实人脸识别版</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@1.0.2/dist/face-landmarks-detection.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 700px;
+            background: rgba(0, 0, 0, 0.85);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(45deg, #ffd700, #ffa500);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 1rem;
+            color: #aaa;
+            margin-bottom: 1.5rem;
+        }
+
+        .info-box {
+            background: rgba(255, 215, 0, 0.1);
+            border: 1px solid #ffd700;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        .upload-area {
+            border: 2px dashed #ffd700;
+            border-radius: 15px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .upload-area:hover {
+            background: rgba(255, 215, 0, 0.1);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .loading {
+            display: none;
+            margin: 2rem 0;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 215, 0, 0.3);
+            border-top: 4px solid #ffd700;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            display: none;
+            margin-top: 2rem;
+        }
+
+        .main-result {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 165, 0, 0.2));
+            border: 2px solid #ffd700;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .match-percent {
+            font-size: 4rem;
+            font-weight: bold;
+            color: #ffd700;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+        }
+
+        .star-name {
+            font-size: 2.2rem;
+            margin: 1rem 0;
+        }
+
+        .star-image {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid #ffd700;
+            margin: 1rem 0;
+        }
+
+        .other-results {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .other-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 1rem;
+        }
+
+        .other-percent {
+            font-size: 1.5rem;
+            color: #ffd700;
+            font-weight: bold;
+        }
+
+        .other-name {
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .btn {
+            background: #ffd700;
+            color: black;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 1.5rem;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            background: white;
+            transform: translateY(-3px);
+        }
+
+        .error {
+            color: #ff6b6b;
+            margin-top: 1rem;
+        }
+
+        #preview {
+            max-width: 200px;
+            border-radius: 10px;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌟 AI明星撞脸测试</h1>
+        <p class="subtitle">真实人脸识别技术 · 46位女明星数据库</p>
+        
+        <div class="info-box">
+            📸 上传你的正面照片，AI将提取面部特征并与46位女明星进行比对
+        </div>
+
+        <div class="upload-area" id="upload-area">
+            <div class="upload-icon">📸</div>
+            <div>点击上传照片</div>
+            <div style="font-size: 0.8rem; color: #aaa; margin-top: 0.5rem;">支持 JPG/PNG 格式，建议正面清晰照片</div>
+            <input type="file" id="file-input" accept="image/*">
+        </div>
+
+        <img id="preview" style="display: none;">
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div>正在提取面部特征...</div>
+            <div style="font-size: 0.8rem; color: #aaa; margin-top: 0.5rem;">首次加载模型需要几秒钟</div>
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div class="results" id="results">
+            <div class="main-result">
+                <div class="match-percent" id="main-percent">0%</div>
+                <img class="star-image" id="main-image" src="" alt="">
+                <div class="star-name" id="main-name">-</div>
+                <div style="color: #ddd;">你们的人脸特征相似度</div>
+            </div>
+
+            <div style="text-align: left; margin-bottom: 0.5rem; color: #ffd700;">其他相似明星：</div>
+            <div class="other-results" id="other-results"></div>
+
+            <button class="btn" onclick="location.reload()">重新测试</button>
+        </div>
+    </div>
+
+    <script>
+        // 加载预提取的明星特征
+        let celebrityFeatures = [];
+        let model = null;
+
+        // 页面加载时读取特征文件
+        async function loadCelebrityFeatures() {
+            try {
+                const response = await fetch('celebrity-features.json');
+                if (!response.ok) {
+                    throw new Error('特征文件未找到，请先运行 npm run extract');
+                }
+                const data = await response.json();
+                celebrityFeatures = data.celebrities;
+                console.log(`已加载 ${celebrityFeatures.length} 位明星的特征`);
+            } catch (err) {
+                console.error('加载特征文件失败:', err);
+                showError('特征文件未找到，请联系管理员先提取明星特征');
+            }
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', async () => {
+            const uploadArea = document.getElementById('upload-area');
+            const fileInput = document.getElementById('file-input');
+            const preview = document.getElementById('preview');
+
+            // 加载明星特征
+            await loadCelebrityFeatures();
+
+            uploadArea.addEventListener('click', () => fileInput.click());
+            
+            fileInput.addEventListener('change', async (e) => {
+                if (e.target.files.length > 0) {
+                    const file = e.target.files[0];
+                    if (!file.type.match('image.*')) {
+                        showError('请选择图片文件！');
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = async (event) => {
+                        preview.src = event.target.result;
+                        preview.style.display = 'block';
+                        await analyzeImage(event.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // 预加载模型
+            loadModel();
+        });
+
+        async function loadModel() {
+            try {
+                console.log('正在加载AI模型...');
+                model = await faceLandmarksDetection.createDetector(
+                    faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
+                    {
+                        runtime: 'tfjs',
+                        refineLandmarks: true,
+                        maxFaces: 1
+                    }
+                );
+                console.log('模型加载完成');
+            } catch (err) {
+                console.error('模型加载失败:', err);
+                showError('AI模型加载失败，请刷新页面重试');
+            }
+        }
+
+        async function analyzeImage(imageSrc) {
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const results = document.getElementById('results');
+
+            if (celebrityFeatures.length === 0) {
+                showError('明星特征数据未加载，无法进行对比');
+                return;
+            }
+
+            loading.style.display = 'block';
+            error.textContent = '';
+            results.style.display = 'none';
+
+            try {
+                if (!model) {
+                    await loadModel();
+                }
+
+                // 创建图片对象
+                const img = new Image();
+                img.src = imageSrc;
+                await new Promise((resolve) => { img.onload = resolve; });
+
+                // 检测人脸特征点
+                const faces = await model.estimateFaces(img);
+
+                if (faces.length === 0) {
+                    throw new Error('未检测到人脸，请上传正面清晰照片');
+                }
+
+                // 提取用户特征（128维特征向量）
+                const userFeatures = extractFaceDescriptor(faces[0]);
+
+                // 与明星特征进行对比
+                const matches = compareFeatures(userFeatures);
+
+                // 显示结果
+                displayResults(matches);
+
+            } catch (err) {
+                showError(err.message || '分析失败，请重试');
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        function extractFaceDescriptor(face) {
+            // 从468个特征点中提取128维特征向量
+            const keypoints = face.keypoints;
+            const descriptor = [];
+            
+            // 选取关键特征点（眼睛、鼻子、嘴巴、轮廓）
+            const keyIndices = [
+                // 眼睛
+                33, 133, 159, 145, 153, 154, 155, 246,  // 左眼
+                263, 362, 386, 374, 380, 381, 382, 466, // 右眼
+                // 鼻子
+                1, 2, 98, 327, 168, 195, 5, 4, 51, 281,
+                // 嘴巴
+                61, 185, 40, 39, 37, 0, 267, 269, 270, 409,
+                291, 375, 321, 405, 314, 17, 84, 181, 91, 146,
+                // 脸部轮廓
+                10, 338, 297, 332, 284, 251, 389, 356, 454, 323,
+                361, 288, 397, 365, 379, 378, 400, 377, 152, 148,
+                // 眉毛
+                70, 63, 105, 66, 107, 336, 296, 334, 293, 300,
+                // 其他关键点
+                127, 162, 21, 54, 103, 67, 109, 234, 93, 132
+            ];
+            
+            for (const idx of keyIndices) {
+                if (keypoints[idx]) {
+                    descriptor.push(keypoints[idx].x / 1000); // 归一化
+                    descriptor.push(keypoints[idx].y / 1000);
+                } else {
+                    descriptor.push(0, 0);
+                }
+            }
+            
+            // 填充到128维
+            while (descriptor.length < 128) {
+                descriptor.push(0);
+            }
+            
+            return descriptor.slice(0, 128);
+        }
+
+        function compareFeatures(userFeatures) {
+            const matches = [];
+            
+            for (const celeb of celebrityFeatures) {
+                // 计算欧氏距离
+                const distance = euclideanDistance(userFeatures, celeb.descriptor);
+                
+                // 使用sigmoid函数归一化相似度（0-100%）
+                // 距离越小，相似度越高
+                const maxDist = 8; // 调整这个值控制相似度范围
+                const normalizedDist = Math.min(distance, maxDist) / maxDist;
+                const similarity = Math.round((1 - normalizedDist) * 100);
+                
+                matches.push({
+                    name: celeb.name,
+                    image: '女明星照片/' + celeb.imagePath,
+                    similarity: similarity
+                });
+            }
+            
+            // 按相似度排序，返回前5个
+            return matches.sort((a, b) => b.similarity - a.similarity).slice(0, 5);
+        }
+
+        function euclideanDistance(a, b) {
+            let sum = 0;
+            for (let i = 0; i < Math.min(a.length, b.length); i++) {
+                sum += Math.pow(a[i] - b[i], 2);
+            }
+            return Math.sqrt(sum);
+        }
+
+        function displayResults(matches) {
+            const results = document.getElementById('results');
+            const mainPercent = document.getElementById('main-percent');
+            const mainImage = document.getElementById('main-image');
+            const mainName = document.getElementById('main-name');
+            const otherResults = document.getElementById('other-results');
+
+            const topMatch = matches[0];
+            
+            mainPercent.textContent = topMatch.similarity + '%';
+            mainImage.src = topMatch.image;
+            mainImage.onerror = () => {
+                mainImage.style.display = 'none';
+            };
+            mainName.textContent = topMatch.name;
+
+            // 显示其他结果
+            otherResults.innerHTML = matches.slice(1).map(match => `
+                <div class="other-card">
+                    <div class="other-percent">${match.similarity}%</div>
+                    <img src="${match.image}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin: 0.5rem 0;" onerror="this.style.display='none'">
+                    <div class="other-name">${match.name}</div>
+                </div>
+            `).join('');
+
+            results.style.display = 'block';
+        }
+
+        function showError(msg) {
+            document.getElementById('error').textContent = msg;
+        }
+    </script>
+</body>
+</html>
